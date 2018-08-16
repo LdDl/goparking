@@ -5,6 +5,7 @@ import (
 	"errors"
 	"image"
 	"io/ioutil"
+	"parkingDetection/parklot"
 
 	"gocv.io/x/gocv"
 )
@@ -15,6 +16,7 @@ type InitParams struct {
 	GlobaWindow *gocv.Window
 	ShowIm      bool
 	Areas       [][]image.Point
+	ParkingLots []parklot.Lot
 	// JSON Structure
 	PJSON paramsJSON
 }
@@ -34,19 +36,34 @@ func (ip *InitParams) SetParams(s string) (err error) {
 
 	for i := range (*ip).PJSON.Areas {
 		var localpoints []image.Point
-		for _, pnt := range (*ip).PJSON.Areas[i] {
+		for _, pnt := range (*ip).PJSON.Areas[i].Coords {
 			localpoints = append(localpoints, image.Point{X: pnt[0], Y: pnt[1]})
 		}
 		(*ip).Areas = append((*ip).Areas, localpoints)
+		var points []image.Point
+		points = append(points, (localpoints[0]))
+		points = append(points, (localpoints[1]))
+		points = append(points, (localpoints[2]))
+		points = append(points, (localpoints[3]))
+		var tmp parklot.Lot
+		tmp.ID = (*ip).PJSON.Areas[i].ID
+		tmp.SetPoints(points)
+		tmp.CalcBoundingRect()
+		(*ip).ParkingLots = append((*ip).ParkingLots, tmp)
 	}
+
 	return err
 }
 
 // paramsJSON - sturct for parsing configuration file
 type paramsJSON struct {
-	VideoType     string    `json:"videoType"`
-	VideoSource   string    `json:"videoSource"`
-	ImageResizing []int     `json:"imageResizing"`
-	ShowImage     bool      `json:"showImage"`
-	Areas         [][][]int `json:"areas"`
+	VideoType     string  `json:"videoType"`
+	VideoSource   string  `json:"videoSource"`
+	ImageResizing []int   `json:"imageResizing"`
+	ShowImage     bool    `json:"showImage"`
+	Laplacian     float64 `json:"laplacian"`
+	Areas         []struct {
+		ID     int     `json:"id"`
+		Coords [][]int `json:"coords"`
+	} `json:"areas"`
 }

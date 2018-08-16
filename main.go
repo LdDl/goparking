@@ -8,6 +8,7 @@ import (
 	"parkingDetection/blobie"
 	"parkingDetection/framedata"
 	"parkingDetection/gpsdata"
+	"parkingDetection/parklot"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -76,6 +77,14 @@ func Grabber() {
 	defer singleFrame.FrameMat.Close()
 	singleFrame.FrameCounter = 0
 
+	// Read fisrt frame and recalculate parameters depending on image scale
+	if ok := webcam.Read(&singleFrame.FrameMatTrue); !ok {
+		// log.Printf("Error cannot read URL or device: %v\n", initialParameters.PJSON.VideoSource)
+		log.Fatalf("Error cannot read URL or device: %v\n", initialParameters.PJSON.VideoSource)
+		return
+	}
+	singleFrame.FrameMatScale = singleFrame.FrameMatTrue.Cols() / initialParameters.PJSON.ImageResizing[0]
+
 	for boolProc.Load() == true {
 		singleFrame.FrameCounter++
 		if ok := webcam.Read(&singleFrame.FrameMatTrue); !ok {
@@ -86,11 +95,8 @@ func Grabber() {
 		if singleFrame.FrameMatTrue.Empty() {
 			continue
 		}
-		// Saved true image before resize
-		singleFrame.FrameMat = singleFrame.FrameMatTrue.Clone()
-		singleFrame.FrameMatScale = singleFrame.FrameMatTrue.Cols() / initialParameters.PJSON.ImageResizing[0]
 		// Resize input image
-		gocv.Resize(singleFrame.FrameMat, &singleFrame.FrameMat, image.Point{initialParameters.PJSON.ImageResizing[0], initialParameters.PJSON.ImageResizing[1]}, 0.0, 0.0, gocv.InterpolationDefault)
+		gocv.Resize(singleFrame.FrameMatTrue, &singleFrame.FrameMat, image.Point{initialParameters.PJSON.ImageResizing[0], initialParameters.PJSON.ImageResizing[1]}, 0.0, 0.0, gocv.InterpolationDefault)
 		singleFrame.Buf, err = gocv.IMEncode(".bmp", singleFrame.FrameMat)
 		if err != nil {
 			// Do not handle error
@@ -168,15 +174,71 @@ func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *bl
 	defer imgCopy.FrameMatTrue.Close()
 
 	if boolFirstFrame {
-		for i := range initialParameters.Areas {
-			for j := range initialParameters.Areas[i] {
-				initialParameters.Areas[i][j].X = initialParameters.Areas[i][j].X / imgCopy.FrameMatScale
-				initialParameters.Areas[i][j].Y = initialParameters.Areas[i][j].Y / imgCopy.FrameMatScale
+		for i := range initialParameters.ParkingLots {
+			var tmp parklot.Lot
+			tmp.ID = initialParameters.ParkingLots[i].ID
+			points := initialParameters.ParkingLots[i].ContourPoints[0]
+			for j := range points {
+				points[j].X /= imgCopy.FrameMatScale
+				points[j].Y /= imgCopy.FrameMatScale
 			}
+			log.Println("pts2", points)
+			tmp.SetPoints(points)
+			tmp.CalcBoundingRect()
+			initialParameters.ParkingLots[i] = tmp
 		}
 	}
 
-	gocv.DrawContours(&imgCopy.FrameMat, initialParameters.Areas, -1, color.RGBA{0, 255, 0, 0}, 1)
+	var imgGray, imgBlur, roi, laplacian, delta gocv.Mat
+	imgGray = gocv.NewMat()
+	imgBlur = gocv.NewMat()
+	roi = gocv.NewMat()
+	laplacian = gocv.NewMat()
+	delta = gocv.NewMatFromScalar(gocv.Scalar{Val1: 0, Val2: 0, Val3: 0, Val4: 0}, gocv.MatTypeCV64F)
+	defer imgGray.Close()
+	defer imgBlur.Close()
+	defer roi.Close()
+	defer laplacian.Close()
+	defer delta.Close()
+
+	gocv.CvtColor(imgCopy.FrameMat, &imgGray, gocv.ColorBGRToGray)
+	gocv.GaussianBlur(imgGray, &imgBlur, image.Point{5, 5}, 3, 3, gocv.BorderDefault)
+
+	for i := range initialParameters.ParkingLots {
+
+		roi = imgBlur.Region(initialParameters.ParkingLots[i].GetBoundingRect())
+		gocv.Laplacian(roi, &laplacian, gocv.MatTypeCV64F, 1, 1, 0, gocv.BorderDefault)
+
+		laplAbs := gocv.NewMat()
+		defer laplAbs.Close()
+
+		emptyScalar := gocv.NewMatFromScalar(gocv.Scalar{Val1: 0, Val2: 0, Val3: 0, Val4: 0}, gocv.MatTypeCV64F)
+		defer emptyScalar.Close()
+		// log.Println("emptyScalar size", emptyScalar.Cols(), emptyScalar.Rows())
+		gocv.AbsDiff(laplacian, emptyScalar, &laplAbs) // alternative to cv::Abs(Mat)
+		mask := initialParameters.ParkingLots[i].GetMask().Clone()
+
+		/* Alternative to  cv::mean(laplAbs, mask); START*/
+		nonZeroesMask := float64(gocv.CountNonZero(mask))
+		meanMask := 0.0
+		for h := 0; h < mask.Rows(); h++ {
+			for g := 0; g < mask.Cols(); g++ {
+				if mask.GetUCharAt(h, g) > 0 {
+					meanMask += laplAbs.GetDoubleAt(h, g)
+				}
+			}
+		}
+		meanMask /= nonZeroesMask
+		/* Alternative to  cv::mean(laplAbs, mask); END*/
+
+		if meanMask > initialParameters.PJSON.Laplacian {
+			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].ContourPoints, -1, color.RGBA{255, 0, 0, 0}, 1)
+		} else {
+			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].ContourPoints, -1, color.RGBA{0, 255, 0, 0}, 1)
+		}
+
+	}
+
 	boolFirstFrame = false
 
 	if initialParameters.ShowIm {
@@ -188,6 +250,7 @@ func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *bl
 }
 
 func main() {
+
 	log.Println("Starting program...")
 	var err error
 	cfgName := flag.String("cfg", "go_ip.json", "Config file path")
