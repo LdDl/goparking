@@ -1,0 +1,55 @@
+{
+  "videoType": "url",
+  "videoSource": "/home/keep/work/src/parkingDetection/datasets/parkinglot_1_480p.mp4",
+  "imageResizing": [
+    854,
+    480
+  ],
+  "properties": {},
+  "showImage": true,
+  "laplacian": 2.0,
+  "areas": [
+    {
+      "id": "1t_lot",
+      "coords": [
+        [
+          368,
+          329
+        ],
+        [
+          410,
+          328
+        ],
+        [
+          437,
+          350
+        ],
+        [
+          387,
+          353
+        ]
+      ]
+    },
+    {
+      "id": "2d_lot",
+      "coords": [
+        [
+          279,
+          441
+        ],
+        [
+          356,
+          437
+        ],
+        [
+          373,
+          474
+        ],
+        [
+          286,
+          474
+        ]
+      ]
+    }
+  ]
+}

@@ -7,71 +7,83 @@ import (
 	"gocv.io/x/gocv"
 )
 
+// Lot - struct for storing data for parking lots (actually it can be any other polygonal object)
 type Lot struct {
-	ID                          int
-	Occupied                    bool
-	ContourPoints               [][]image.Point
-	PolygonPointsInBoundingRect []image.Point
-	BoudingRect                 image.Rectangle
-	Mask                        gocv.Mat
+	id                          string
+	occupied                    bool
+	contourPoints               [][]image.Point
+	polygonPointsInBoundingRect []image.Point
+	boudingRect                 image.Rectangle
+	mask                        gocv.Mat
 }
 
+// NewParkingLot - constructor for Lot type
 func NewParkingLot() Lot {
 	return Lot{
-		ID:       -1,
-		Occupied: false,
+		id:       "EmptyID",
+		occupied: false,
 	}
 }
 
+// SetStatus - sets status for lot
 func (l *Lot) SetStatus(s bool) {
-	(*l).Occupied = s
+	(*l).occupied = s
 }
 
+// GetStatus - returns status of lot
 func (l *Lot) GetStatus() bool {
-	return (*l).Occupied
+	return (*l).occupied
 }
 
-func (l *Lot) SetID(i int) {
-	(*l).ID = i
+// SetID - sets ID for lot
+func (l *Lot) SetID(i string) {
+	(*l).id = i
 }
 
-func (l *Lot) GetID() int {
-	return (*l).ID
+// GetID - returns ID of lot
+func (l *Lot) GetID() string {
+	return (*l).id
 }
 
-func (l *Lot) SetPoints(p []image.Point) {
+// SetContourPoints - sets contour points for lot
+func (l *Lot) SetContourPoints(p []image.Point) {
 	var contours [][]image.Point
 	contours = append(contours, p)
-	(*l).ContourPoints = contours
+	(*l).contourPoints = contours
 }
 
+// GetContourPoints - returns contour points of lot
 func (l *Lot) GetContourPoints() [][]image.Point {
-	return (*l).ContourPoints
+	return (*l).contourPoints
 }
 
+// GetBoundingRect - returns bouding rect of lot
+func (l *Lot) GetBoundingRect() image.Rectangle {
+	return (*l).boudingRect
+}
+
+// GetMask - returns mask of lot
+func (l *Lot) GetMask() *gocv.Mat {
+	return &l.mask
+}
+
+// GetCenterPoint - calculates and returns center point of bounding rect for lot
+func (l *Lot) GetCenterPoint() image.Point {
+	return image.Point{X: (2 + (*l).boudingRect.Min.X + (*l).boudingRect.Dx()) / 2, Y: (2 + (*l).boudingRect.Min.Y + (*l).boudingRect.Dy()) / 2}
+}
+
+// CalcBoundingRect - calculates and sets bounding rect for lot
 func (l *Lot) CalcBoundingRect() {
-	if len(((*l).ContourPoints)) != 0 {
-		(*l).BoudingRect = gocv.BoundingRect((*l).ContourPoints[0])
-		(*l).Mask = gocv.NewMatWithSize((*l).BoudingRect.Size().Y, (*l).BoudingRect.Size().X, gocv.MatTypeCV8UC1)
-		for _, p := range (*l).ContourPoints[0] {
-			(*l).PolygonPointsInBoundingRect = append((*l).PolygonPointsInBoundingRect, image.Point{X: p.X - (*l).BoudingRect.Min.X, Y: p.Y - (*l).BoudingRect.Min.Y})
+	if len(((*l).contourPoints)) != 0 {
+		(*l).boudingRect = gocv.BoundingRect((*l).contourPoints[0])
+		(*l).mask = gocv.NewMatWithSize((*l).boudingRect.Size().Y, (*l).boudingRect.Size().X, gocv.MatTypeCV8UC1)
+		for _, p := range (*l).contourPoints[0] {
+			(*l).polygonPointsInBoundingRect = append((*l).polygonPointsInBoundingRect, image.Point{X: p.X - (*l).boudingRect.Min.X, Y: p.Y - (*l).boudingRect.Min.Y})
 		}
 		var contours [][]image.Point
-		contours = append(contours, (*l).PolygonPointsInBoundingRect)
-		gocv.DrawContours(&(*l).Mask, contours, -1, color.RGBA{255, 255, 255, 255}, -1)
+		contours = append(contours, (*l).polygonPointsInBoundingRect)
+		gocv.DrawContours(&(*l).mask, contours, -1, color.RGBA{255, 255, 255, 255}, -1)
 	} else {
 
 	}
-}
-
-func (l *Lot) GetBoundingRect() image.Rectangle {
-	return (*l).BoudingRect
-}
-
-func (l *Lot) GetMask() *gocv.Mat {
-	return &l.Mask
-}
-
-func (l *Lot) GetCenterPoint() image.Point {
-	return image.Point{X: (2 + (*l).BoudingRect.Min.X + (*l).BoudingRect.Dx()) / 2, Y: (2 + (*l).BoudingRect.Min.Y + (*l).BoudingRect.Dy()) / 2}
 }

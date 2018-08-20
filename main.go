@@ -5,31 +5,28 @@ import (
 	"image"
 	"image/color"
 	"log"
-	"parkingDetection/blobie"
 	"parkingDetection/framedata"
-	"parkingDetection/gpsdata"
+
 	"parkingDetection/parklot"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"fifo/fifobuffer_v2"
+	"parkingDetection/pkgs/fifo"
 	"parkingDetection/pkgs/inits"
 
-	gpsd "github.com/stratoberry/go-gpsd"
 	"gocv.io/x/gocv"
 )
 
 var (
 	// Atomic variables for grabbing and processing functions
-	boolGrab    atomic.Value
-	boolProc    atomic.Value
-	boolProcGPS atomic.Value
+	boolGrab atomic.Value
+	boolProc atomic.Value
 
 	// FIFO Queue
-	fifoFrames *fifobuffer_v2.FIFOQueue
-	fifoGPS    *fifobuffer_v2.FIFOQueue
+	fifoFrames *fifo.FIFOQueue
+	fifoGPS    *fifo.FIFOQueue
 	wg         sync.WaitGroup
 
 	initialParameters inits.InitParams
@@ -85,6 +82,19 @@ func Grabber() {
 	}
 	singleFrame.FrameMatScale = singleFrame.FrameMatTrue.Cols() / initialParameters.PJSON.ImageResizing[0]
 
+	for i := range initialParameters.ParkingLots {
+		var tmp parklot.Lot
+		tmp.SetID(initialParameters.ParkingLots[i].GetID())
+		points := initialParameters.ParkingLots[i].GetContourPoints()[0]
+		for j := range points {
+			points[j].X /= singleFrame.FrameMatScale
+			points[j].Y /= singleFrame.FrameMatScale
+		}
+		tmp.SetContourPoints(points)
+		tmp.CalcBoundingRect()
+		initialParameters.ParkingLots[i] = tmp
+	}
+
 	for boolProc.Load() == true {
 		singleFrame.FrameCounter++
 		if ok := webcam.Read(&singleFrame.FrameMatTrue); !ok {
@@ -95,6 +105,7 @@ func Grabber() {
 		if singleFrame.FrameMatTrue.Empty() {
 			continue
 		}
+
 		// Resize input image
 		gocv.Resize(singleFrame.FrameMatTrue, &singleFrame.FrameMat, image.Point{initialParameters.PJSON.ImageResizing[0], initialParameters.PJSON.ImageResizing[1]}, 0.0, 0.0, gocv.InterpolationDefault)
 		singleFrame.Buf, err = gocv.IMEncode(".bmp", singleFrame.FrameMat)
@@ -110,39 +121,14 @@ func Grabber() {
 	wg.Done()
 }
 
-// ProcessingGPS - отправка на обработку данных с USB bu-353 GPS (Glonass)
-func ProcessingGPS() {
-	var gps *gpsd.Session
-	var err error
-	if gps, err = gpsd.Dial(gpsd.DefaultAddress); err != nil {
-		log.Printf("Failed to connect to GPSD: %s", err)
-		// /return
-	}
-	log.Printf("Succesfully to connect to GPSD: %v", gps)
-	var singleGPS gpsdata.GPSData
-	gps.AddFilter("TPV", func(r interface{}) {
-		tpv := r.(*gpsd.TPVReport)
-		singleGPS.GPSTime = tpv.Time.Add(3 * time.Hour)
-		singleGPS.GPSLatitude = tpv.Lat
-		singleGPS.GPSLongitude = tpv.Lon
-		fifoGPS.Push(singleGPS)
-	})
-	done := gps.Watch()
-	<-done
-	wg.Done()
-}
-
 // Processing - отправка на обработку кадров видеопотока
 func Processing() {
 
 	// Defer exits
 	var singleFrame framedata.FrameData
-	var singleGPS gpsdata.GPSData
-	var allBlobies blobie.Blobies
 
 	for boolProc.Load() == true {
 		var interFrame interface{}
-		var interGPS interface{}
 		var ok bool
 
 		// Pop input image from queue
@@ -152,42 +138,18 @@ func Processing() {
 		} else {
 			continue
 		}
-
-		// Pop GPS from queue without checking
-		interGPS = fifoGPS.Pop()
-		if _, ok = interGPS.(gpsdata.GPSData); ok {
-			singleGPS = interGPS.(gpsdata.GPSData)
-		} else {
-			// continue
-		}
-		ProcessingData(&singleFrame, &singleGPS, &allBlobies)
+		ProcessingData(&singleFrame)
 	}
 	wg.Done()
 }
 
 // ProcessingData - обработка кадров видеопотока
-func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *blobie.Blobies) {
+func ProcessingData(f *framedata.FrameData) {
 
 	var imgCopy framedata.FrameData
 	imgCopy = (*f).Clone()
 	defer imgCopy.FrameMat.Close()
 	defer imgCopy.FrameMatTrue.Close()
-
-	if boolFirstFrame {
-		for i := range initialParameters.ParkingLots {
-			var tmp parklot.Lot
-			tmp.ID = initialParameters.ParkingLots[i].ID
-			points := initialParameters.ParkingLots[i].ContourPoints[0]
-			for j := range points {
-				points[j].X /= imgCopy.FrameMatScale
-				points[j].Y /= imgCopy.FrameMatScale
-			}
-			log.Println("pts2", points)
-			tmp.SetPoints(points)
-			tmp.CalcBoundingRect()
-			initialParameters.ParkingLots[i] = tmp
-		}
-	}
 
 	var imgGray, imgBlur, roi, laplacian, delta gocv.Mat
 	imgGray = gocv.NewMat()
@@ -214,11 +176,11 @@ func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *bl
 
 		emptyScalar := gocv.NewMatFromScalar(gocv.Scalar{Val1: 0, Val2: 0, Val3: 0, Val4: 0}, gocv.MatTypeCV64F)
 		defer emptyScalar.Close()
-		// log.Println("emptyScalar size", emptyScalar.Cols(), emptyScalar.Rows())
+
 		gocv.AbsDiff(laplacian, emptyScalar, &laplAbs) // alternative to cv::Abs(Mat)
 		mask := initialParameters.ParkingLots[i].GetMask().Clone()
 
-		/* Alternative to  cv::mean(laplAbs, mask); START*/
+		/*START Alternative to  cv::mean(laplAbs, mask); START*/
 		nonZeroesMask := float64(gocv.CountNonZero(mask))
 		meanMask := 0.0
 		for h := 0; h < mask.Rows(); h++ {
@@ -229,12 +191,12 @@ func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *bl
 			}
 		}
 		meanMask /= nonZeroesMask
-		/* Alternative to  cv::mean(laplAbs, mask); END*/
+		/*END Alternative to  cv::mean(laplAbs, mask); END*/
 
 		if meanMask > initialParameters.PJSON.Laplacian {
-			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].ContourPoints, -1, color.RGBA{255, 0, 0, 0}, 1)
+			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].GetContourPoints(), -1, color.RGBA{255, 0, 0, 0}, 1)
 		} else {
-			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].ContourPoints, -1, color.RGBA{0, 255, 0, 0}, 1)
+			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].GetContourPoints(), -1, color.RGBA{0, 255, 0, 0}, 1)
 		}
 
 	}
@@ -250,12 +212,10 @@ func ProcessingData(f *framedata.FrameData, gps *gpsdata.GPSData, allBlobies *bl
 }
 
 func main() {
-
 	log.Println("Starting program...")
 	var err error
 	cfgName := flag.String("cfg", "go_ip.json", "Config file path")
 	flag.Parse()
-
 	err = initialParameters.SetParams(*cfgName)
 	if err != nil {
 		log.Println(err)
@@ -267,12 +227,11 @@ func main() {
 		defer initialParameters.GlobaWindow.Close()
 	}
 
-	fifoFrames = fifobuffer_v2.NewQueue(60)
-	fifoGPS = fifobuffer_v2.NewQueue(60)
+	fifoFrames = fifo.NewQueue(60)
+	fifoGPS = fifo.NewQueue(60)
 
 	boolGrab.Store(true)
 	boolProc.Store(true)
-	boolProcGPS.Store(true)
 
 	wg.Add(1)
 	go Grabber()
@@ -280,14 +239,10 @@ func main() {
 	wg.Add(1)
 	go Processing()
 
-	wg.Add(1)
-	go ProcessingGPS()
-
 	wg.Wait()
 
 	boolGrab.Store(false)
 	boolProc.Store(false)
-	boolProcGPS.Store(false)
 
 	log.Println("Done!")
 }

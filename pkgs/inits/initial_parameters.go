@@ -46,8 +46,8 @@ func (ip *InitParams) SetParams(s string) (err error) {
 		points = append(points, (localpoints[2]))
 		points = append(points, (localpoints[3]))
 		var tmp parklot.Lot
-		tmp.ID = (*ip).PJSON.Areas[i].ID
-		tmp.SetPoints(points)
+		tmp.SetID((*ip).PJSON.Areas[i].ID)
+		tmp.SetContourPoints(points)
 		tmp.CalcBoundingRect()
 		(*ip).ParkingLots = append((*ip).ParkingLots, tmp)
 	}
@@ -63,7 +63,7 @@ type paramsJSON struct {
 	ShowImage     bool    `json:"showImage"`
 	Laplacian     float64 `json:"laplacian"`
 	Areas         []struct {
-		ID     int     `json:"id"`
+		ID     string  `json:"id"`
 		Coords [][]int `json:"coords"`
 	} `json:"areas"`
 }
