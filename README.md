@@ -87,6 +87,11 @@ For Windows:
 main.exe -cfg=example.json
 ```
 - Enjoy
+![-](https://raw.githubusercontent.com/LdDl/goparking/master/datasets/output/im1.png)
+![-](https://raw.githubusercontent.com/LdDl/goparking/master/datasets/output/im2.png)
+![-](https://raw.githubusercontent.com/LdDl/goparking/master/datasets/output/im3.png)
+![-](https://raw.githubusercontent.com/LdDl/goparking/master/datasets/output/im4.png)
+![-](https://raw.githubusercontent.com/LdDl/goparking/master/datasets/output/im5.png)
 
 ## Support
 
