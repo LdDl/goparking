@@ -99,5 +99,5 @@ main.exe -cfg=example.json
 If you have troubles please [open an issue](https://github.com/LdDl/goparking/issues/new).
 
 ## Thanks
-Big thanks to creators and developers of [GoCV](https://gocv.io/)</br> for providing good binding to OpenCV
+Big thanks to creators and developers of [GoCV](https://gocv.io/) for providing bindings to OpenCV </br>
 And thanks to this [project](https://github.com/eladj/detectParking) for algorithm template.
