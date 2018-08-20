@@ -194,6 +194,7 @@ func ProcessingData(f *framedata.FrameData) {
 		/*END Alternative to  cv::mean(laplAbs, mask); END*/
 
 		if meanMask > initialParameters.PJSON.Laplacian {
+			log.Printf("Parking lot with id: %v is occupied", initialParameters.ParkingLots[i].GetID())
 			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].GetContourPoints(), -1, color.RGBA{255, 0, 0, 0}, 1)
 		} else {
 			gocv.DrawContours(&imgCopy.FrameMat, initialParameters.ParkingLots[i].GetContourPoints(), -1, color.RGBA{0, 255, 0, 0}, 1)
