@@ -90,4 +90,4 @@ main.exe -cfg=example.json
 
 ## Support
 
-Please [open an issue](https://github.com/fraction/readme-boilerplate/issues/new) for support.
+If you have troubles please [open an issue](https://github.com/LdDl/goparking/issues/new).
