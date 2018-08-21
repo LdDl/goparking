@@ -1,6 +1,6 @@
 {
   "videoType": "url",
-  "videoSource": "/home/keep/work/src/github.com/lddl/parkingDetection/datasets/parkinglot_1_480p.mp4",
+  "videoSource": "datasets/parkinglot_1_480p.mp4",
   "imageResizing": [
     854,
     480
