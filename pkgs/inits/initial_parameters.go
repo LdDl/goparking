@@ -5,7 +5,8 @@ import (
 	"errors"
 	"image"
 	"io/ioutil"
-	"parkingDetection/parklot"
+
+	"github.com/lddl/parkingDetection/parklot"
 
 	"gocv.io/x/gocv"
 )

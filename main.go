@@ -5,16 +5,18 @@ import (
 	"image"
 	"image/color"
 	"log"
-	"parkingDetection/framedata"
 
-	"parkingDetection/parklot"
+	"github.com/lddl/parkingDetection/framedata"
+
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"parkingDetection/pkgs/fifo"
-	"parkingDetection/pkgs/inits"
+	"github.com/lddl/parkingDetection/parklot"
+
+	"github.com/lddl/parkingDetection/pkgs/fifo"
+	"github.com/lddl/parkingDetection/pkgs/inits"
 
 	"gocv.io/x/gocv"
 )
