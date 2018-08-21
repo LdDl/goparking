@@ -7,6 +7,7 @@ It uses good computer vision package GoCV (see https://github.com/hybridgroup/go
 - [Installation](#installation)
 - [Usage](#usage)
 - [Support](#support)
+- [Thanks](#thanks)
 
 ## Installation
 
@@ -96,3 +97,7 @@ main.exe -cfg=example.json
 ## Support
 
 If you have troubles please [open an issue](https://github.com/LdDl/goparking/issues/new).
+
+## Thanks
+Big thanks to creators and developers of [GoCV](https://gocv.io/) for providing bindings to OpenCV </br>
+And thanks to this [project](https://github.com/eladj/detectParking) for algorithm template.
