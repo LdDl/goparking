@@ -6,7 +6,7 @@ import (
 	"image"
 	"io/ioutil"
 
-	"github.com/lddl/goparking/parklot"
+	"github.com/LdDl/goparking/parklot"
 
 	"gocv.io/x/gocv"
 )

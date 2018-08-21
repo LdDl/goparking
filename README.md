@@ -22,7 +22,7 @@ go get https://github.com/LdDl/goparking
 ## Usage
 
 - Build</br>
-Go to $GOPATH/src/lddl/goparking folder.</br>
+Go to $GOPATH/src/LdDl/goparking folder.</br>
 Open terminal in that folder and type:
 ```go
 go build main.go
