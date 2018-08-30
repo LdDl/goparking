@@ -16,7 +16,7 @@ As it uses GoCV, first of all you have to install it. Please see steps described
 If you successfully installed everything (GoCV, OpenCV, OpenCV-contrib), then you good to go. Just install it via `get`:
 
 ```go
-go get https://github.com/LdDl/goparking
+go get github.com/LdDl/goparking
 ```
 
 ## Usage
