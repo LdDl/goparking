@@ -28,7 +28,6 @@ var (
 
 	// FIFO Queue
 	fifoFrames *fifo.FIFOQueue
-	fifoGPS    *fifo.FIFOQueue
 	wg         sync.WaitGroup
 
 	initialParameters inits.InitParams
@@ -231,7 +230,6 @@ func main() {
 	}
 
 	fifoFrames = fifo.NewQueue(60)
-	fifoGPS = fifo.NewQueue(60)
 
 	boolGrab.Store(true)
 	boolProc.Store(true)
